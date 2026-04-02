@@ -7,6 +7,7 @@ import { resolve } from 'path';
 import { parseLinkedomHTML } from './utils/linkedom-compat';
 import { countWords } from './utils';
 import { getInitialUA, fetchPage, extractRawMarkdown, cleanMarkdownContent, BOT_UA } from './fetch';
+import { fetchPageWithBrowser, isPlaywrightAvailable } from './browser-fetch';
 
 interface ParseOptions {
 	output?: string;
@@ -16,6 +17,7 @@ interface ParseOptions {
 	debug?: boolean;
 	property?: string;
 	lang?: string;
+	render?: boolean;
 }
 
 // ANSI color helpers (avoids chalk dependency which is ESM-only)
@@ -46,6 +48,7 @@ program
 	.option('-p, --property <name>', 'Extract a specific property (e.g., title, description, domain)')
 	.option('--debug', 'Enable debug mode')
 	.option('-l, --lang <code>', 'Preferred language (BCP 47, e.g. en, fr, ja)')
+	.option('-r, --render', 'Use headless browser to render JavaScript (requires playwright)')
 	.action(async (source: string, options: ParseOptions) => {
 		try {
 			// Handle --md alias
@@ -67,8 +70,14 @@ program
 			const isUrl = source.startsWith('http://') || source.startsWith('https://');
 			if (isUrl) {
 				url = source;
-				const initialUA = getInitialUA(source);
-				html = await fetchPage(source, initialUA, options.lang);
+
+				if (options.render) {
+					// --render: skip normal fetch, go straight to headless browser
+					html = await fetchPageWithBrowser(source, options.lang);
+				} else {
+					const initialUA = getInitialUA(source);
+					html = await fetchPage(source, initialUA, options.lang);
+				}
 			} else {
 				const filePath = resolve(process.cwd(), source);
 				html = await readFile(filePath, 'utf-8');
@@ -79,7 +88,7 @@ program
 
 			// If no content was extracted from a URL, retry with bot UA.
 			// Some sites (e.g. Obsidian Publish) serve pre-rendered content to bots.
-			if (isUrl && result.wordCount === 0) {
+			if (isUrl && !options.render && result.wordCount === 0) {
 				try {
 					const botHtml = await fetchPage(source, BOT_UA, options.lang);
 
@@ -100,6 +109,21 @@ program
 					}
 				} catch {
 					// Bot UA may be blocked — use original result
+				}
+			}
+
+			// If still no content and Playwright is available, try headless browser rendering.
+			// SPAs (e.g. Angular, React) need JavaScript execution to render content.
+			if (isUrl && !options.render && result.wordCount === 0 && isPlaywrightAvailable()) {
+				try {
+					const browserHtml = await fetchPageWithBrowser(source, options.lang);
+					const browserDoc = parseLinkedomHTML(browserHtml);
+					const browserResult = await Defuddle(browserDoc, url, defuddleOpts);
+					if (browserResult.wordCount > 0) {
+						result = browserResult;
+					}
+				} catch {
+					// Playwright rendering failed — use previous result
 				}
 			}
 

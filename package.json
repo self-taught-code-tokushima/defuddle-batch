@@ -78,6 +78,7 @@
 	"optionalDependencies": {
 		"linkedom": "^0.18.12",
 		"mathml-to-latex": "^1.5.0",
+		"playwright": "^1.59.1",
 		"temml": "^0.13.1",
 		"turndown": "^7.2.0"
 	},

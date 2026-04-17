@@ -1,10 +1,10 @@
 {
-	"name": "defuddle",
+	"name": "defuddle-batch",
 	"version": "0.15.0",
-	"description": "Extract article content and metadata from web pages.",
+	"description": "Extract article content from web pages with batch processing support.",
 	"main": "dist/index.js",
 	"bin": {
-		"defuddle": "dist/cli.js"
+		"defuddle": "./dist/cli.js"
 	},
 	"module": "dist/index.js",
 	"types": "dist/index.d.ts",
@@ -60,18 +60,20 @@
 		"html-cleanup",
 		"content-parser",
 		"article-parser",
-		"dom"
+		"dom",
+		"batch-processing",
+		"url-batch"
 	],
 	"author": "kepano",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/kepano/defuddle.git"
+		"url": "git+https://github.com/self-taught-code-tokushima/defuddle-batch.git"
 	},
 	"bugs": {
-		"url": "https://github.com/kepano/defuddle/issues"
+		"url": "https://github.com/self-taught-code-tokushima/defuddle-batch/issues"
 	},
-	"homepage": "https://github.com/kepano/defuddle",
+	"homepage": "https://github.com/self-taught-code-tokushima/defuddle-batch",
 	"dependencies": {
 		"commander": "^12.1.0"
 	},

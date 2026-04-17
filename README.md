@@ -3,11 +3,15 @@
 
 **Beware! Defuddle is very much a work in progress!**
 
-Defuddle extracts the main content from web pages. It cleans up web pages by removing clutter like comments, sidebars, headers, footers, and other non-essential elements, leaving only the primary content.
+This is an enhanced fork optimized for batch URL processing. The core content extraction logic is based on [Defuddle](https://github.com/kepano/defuddle).
 
-## Overview
+This batch version adds:
+- **Batch processing**: Parse multiple URLs from a file
+- **Retry support**: Automatically retry failed URLs (up to N attempts)
+- **Failure logging**: Save failed URLs to `failures.log`
+- **Output grouping**: Save all processed content to a single directory
 
-Defuddle takes a URL or HTML, finds the main content, and returns cleaned HTML or Markdown. Defuddle was created for the browser extension [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper), but it is designed to run in any environment.
+The base Defuddle tool extracts the main content from web pages, cleaning up clutter like comments, sidebars, headers, footers, and other non-essential elements.
 
 Defuddle can be used as a replacement for [Mozilla Readability](https://github.com/mozilla/readability) with a few differences:
 

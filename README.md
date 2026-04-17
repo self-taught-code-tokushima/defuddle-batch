@@ -86,11 +86,14 @@ npx defuddle parse page.html --property title
 # Save output to a file
 npx defuddle parse page.html --output result.html
 
+# Render JavaScript with a headless browser (requires playwright)
+npx defuddle parse https://example.com/spa-page --render --markdown
+
 # Enable debug mode
 npx defuddle parse page.html --debug
 ```
 
-#### CLI Options
+#### Parse options
 
 | Option | Alias | Description |
 |--------|-------|-------------|
@@ -99,6 +102,47 @@ npx defuddle parse page.html --debug
 | `--md` | | Alias for `--markdown` |
 | `--json` | `-j` | Output as JSON with metadata and content |
 | `--property <name>` | `-p` | Extract a specific property (e.g., title, description, domain) |
+| `--render` | `-r` | Use headless browser to render JavaScript (requires [playwright](https://playwright.dev/)) |
+| `--debug` | | Enable debug mode |
+| `--lang <code>` | `-l` | Preferred language (BCP 47, e.g. `en`, `fr`, `ja`) |
+
+When Playwright is installed, pages that return no content will automatically fall back to headless browser rendering, even without `--render`.
+
+#### Batch processing
+
+Process multiple URLs from a file with a delay between requests:
+
+```bash
+# Parse URLs from a file and save as markdown
+npx defuddle batch urls.txt --markdown --output-dir ./out
+
+# With a 3 second delay between requests
+npx defuddle batch urls.txt --markdown --output-dir ./out --delay 3
+
+# Render JavaScript for SPA sites
+npx defuddle batch urls.txt --markdown --output-dir ./out --render
+```
+
+The URL file should contain one URL per line. Empty lines and lines starting with `#` are skipped.
+
+```
+# My URLs
+https://example.com/page1
+https://example.com/page2
+```
+
+Output filenames are generated from the URL path (e.g. `page1.md`, `page2.md`). Duplicate names get a numeric suffix.
+
+#### Batch options
+
+| Option | Alias | Description |
+|--------|-------|-------------|
+| `--output-dir <dir>` | `-o` | Output directory (default: current directory) |
+| `--delay <seconds>` | `-d` | Delay between requests in seconds (default: 1) |
+| `--markdown` | `-m` | Convert content to markdown format |
+| `--md` | | Alias for `--markdown` |
+| `--json` | `-j` | Output as JSON with metadata and content |
+| `--render` | `-r` | Use headless browser to render JavaScript (requires [playwright](https://playwright.dev/)) |
 | `--debug` | | Enable debug mode |
 | `--lang <code>` | `-l` | Preferred language (BCP 47, e.g. `en`, `fr`, `ja`) |
 
@@ -118,6 +162,12 @@ Or use JSDOM:
 
 ```bash
 npm install jsdom
+```
+
+For JavaScript-rendered pages (SPAs), install Playwright:
+
+```bash
+npm install playwright
 ```
 
 ### CLI installation

@@ -1,9 +1,15 @@
-> de·​fud·dle /diˈfʌdl/ *transitive verb*  
-> to remove unnecessary elements from a web page, and make it easily readable.
+# deffuddle-batch
 
-**Beware! Defuddle is very much a work in progress!**
+**⚠️ This is a Node.js-focused batch processing fork of Defuddle.**
 
-This is an enhanced fork optimized for batch URL processing. The core content extraction logic is based on [Defuddle](https://github.com/kepano/defuddle).
+*Originally developed for browser-based clipper extensions (like [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper)), this version is customized specifically for **batch URL processing in Node.js environments**.*
+
+**Key differences from browser versions:**
+- Designed for command-line Node.js execution
+- Includes batch processing and retry capabilities
+- Outputs are saved to files for later use
+
+The core content extraction logic is adapted from [Defuddle](https://github.com/kepano/defuddle) by [kepano](https://github.com/kepano).
 
 This batch version adds:
 - **Batch processing**: Parse multiple URLs from a file
@@ -11,7 +17,10 @@ This batch version adds:
 - **Failure logging**: Save failed URLs to `failures.log`
 - **Output grouping**: Save all processed content to a single directory
 
-The base Defuddle tool extracts the main content from web pages, cleaning up clutter like comments, sidebars, headers, footers, and other non-essential elements.
+---
+
+> de·​fud·dle /diˈfʌdl/ *transitive verb*  
+> to remove unnecessary elements from a web page, and make it easily readable.
 
 Defuddle can be used as a replacement for [Mozilla Readability](https://github.com/mozilla/readability) with a few differences:
 
@@ -69,32 +78,41 @@ _Note: for `defuddle/node` to import properly, the module format in your `packag
 
 ### CLI
 
-Defuddle includes a command-line interface for parsing web pages directly from the terminal. You can run it with `npx` or [install it globally](#cli-installation).
+This is a Node.js-focused fork optimized for batch processing via the command line.
+
+#### Quick Start
 
 ```bash
-# Parse a local HTML file
-npx defuddle parse page.html
+# Clone or install the package
+git clone https://github.com/self-taught-code-tokushima/defuddle-batch
+cd defuddle-batch
+npm install
+npm run build:js
 
-# Parse a URL
-npx defuddle parse https://example.com/article
+# Run batch processing
+node ./dist/cli.js batch urls.txt --markdown --output-dir ./output
+```
 
-# Output as markdown
-npx defuddle parse page.html --markdown
+#### Single URL Parsing
+
+```bash
+# Parse a URL (output to stdout)
+node ./dist/cli.js parse https://example.com/article
+
+# Save as markdown to file
+node ./dist/cli.js parse https://example.com/article --markdown --output output.md
 
 # Output as JSON with metadata
-npx defuddle parse page.html --json
+node ./dist/cli.js parse https://example.com/article --json
+
+# Render JavaScript with headless browser (requires playwright)
+node ./dist/cli.js parse https://example.com/spa-page --render --markdown
 
 # Extract a specific property
-npx defuddle parse page.html --property title
-
-# Save output to a file
-npx defuddle parse page.html --output result.html
-
-# Render JavaScript with a headless browser (requires playwright)
-npx defuddle parse https://example.com/spa-page --render --markdown
+node ./dist/cli.js parse https://example.com/article --property title
 
 # Enable debug mode
-npx defuddle parse page.html --debug
+node ./dist/cli.js parse https://example.com/article --debug
 ```
 
 #### Parse options
@@ -118,13 +136,16 @@ Process multiple URLs from a file with a delay between requests:
 
 ```bash
 # Parse URLs from a file and save as markdown
-npx defuddle batch urls.txt --markdown --output-dir ./out
+node ./dist/cli.js batch urls.txt --markdown --output-dir ./out
 
 # With a 3 second delay between requests
-npx defuddle batch urls.txt --markdown --output-dir ./out --delay 3
+node ./dist/cli.js batch urls.txt --markdown --output-dir ./out --delay 3
 
 # Render JavaScript for SPA sites
-npx defuddle batch urls.txt --markdown --output-dir ./out --render
+node ./dist/cli.js batch urls.txt --markdown --output-dir ./out --render
+
+# Use browser rendering with headless mode
+node ./dist/cli.js batch urls.txt --markdown --render
 ```
 
 The URL file should contain one URL per line. Empty lines and lines starting with `#` are skipped.
@@ -141,7 +162,7 @@ Retrying failed URLs:
 
 ```bash
 # Retry failed URLs 3 times with 5 second delay between attempts
-npx defuddle batch urls.txt --markdown --output-dir ./out --retries 3 --retry-delay 5
+node ./dist/cli.js batch urls.txt --markdown --output-dir ./out --retries 3 --retry-delay 5
 ```
 
 On retry, successful pages are saved with a `-retry1`, `-retry2` suffix (e.g. `page1-retry1.md`). Failed URLs are saved to `failures.log` for later reference.

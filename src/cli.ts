@@ -23,6 +23,9 @@ interface ParseOptions {
 interface BatchOptions {
 	outputDir?: string;
 	delay?: string;
+	retries?: string;
+	retryDelay?: string;
+	saveFailures?: boolean;
 	markdown?: boolean;
 	md?: boolean;
 	json?: boolean;
@@ -37,6 +40,13 @@ interface CoreOptions {
 	debug?: boolean;
 	lang?: string;
 	render?: boolean;
+}
+
+/**
+ * Sleep for specified milliseconds.
+ */
+function sleep(ms: number): Promise<void> {
+	return new Promise(r => setTimeout(r, ms));
 }
 
 /**
@@ -234,10 +244,13 @@ program
 
 program
 	.command('batch')
-	.description('Parse multiple URLs from a file with a delay between requests')
+	.description('Parse multiple URLs from a file with a delay between requests, with retry support')
 	.argument('<file>', 'Text file with one URL per line (# comments and empty lines are skipped)')
 	.option('-o, --output-dir <dir>', 'Output directory (default: current directory)', '.')
 	.option('-d, --delay <seconds>', 'Delay between requests in seconds (default: 1)', '1')
+	.option('--retries <count>', 'Number of retry attempts for failed URLs (default: 0)')
+	.option('--retry-delay <seconds>', 'Delay between retry attempts in seconds (default: 1)', '1')
+	.option('--save-failures', 'Save failed URLs to failures.log (default: true)', true)
 	.option('-m, --markdown', 'Convert content to markdown format')
 	.option('--md', 'Alias for --markdown')
 	.option('-j, --json', 'Output as JSON with metadata and content')
@@ -267,12 +280,22 @@ program
 
 			const ext = options.json ? '.json' : options.markdown ? '.md' : '.html';
 			const delayMs = Math.max(0, parseFloat(options.delay || '1') * 1000);
+			const retries = parseInt(options.retries || '0', 10);
+			const retryDelayMs = Math.max(0, parseFloat(options.retryDelay || '1') * 1000);
+			const saveFailures = options.saveFailures !== false;
 
 			// Track used filenames to avoid collisions
 			const usedNames = new Set<string>();
 
+			// Track failed URLs for retry
+			interface FailedUrl {
+				url: string;
+				reason: string;
+				index: string;
+			}
+			let failedUrls: FailedUrl[] = [];
+
 			let succeeded = 0;
-			let failed = 0;
 
 			for (let i = 0; i < urls.length; i++) {
 				const url = urls[i];
@@ -286,7 +309,7 @@ program
 					const textContent = result.content.replace(/<[^>]*>/g, '').trim();
 					if (!textContent) {
 						process.stderr.write(ansi.red('no content\n'));
-						failed++;
+						failedUrls.push({ url, reason: 'no_content', index });
 					} else {
 						const output = formatResult(result, { markdown: options.markdown, json: options.json });
 
@@ -308,19 +331,90 @@ program
 				} catch (error) {
 					const msg = error instanceof Error ? error.message : 'Unknown error';
 					process.stderr.write(ansi.red(`error: ${msg}\n`));
-					failed++;
+					failedUrls.push({ url, reason: msg, index });
 				}
 
 				// Delay before next request (skip after last)
 				if (i < urls.length - 1 && delayMs > 0) {
-					await new Promise(r => setTimeout(r, delayMs));
+					await sleep(delayMs);
 				}
 			}
 
-			process.stderr.write(`\nDone: ${succeeded} succeeded, ${failed} failed\n`);
-			if (failed > 0) {
-				process.exit(1);
+			// Retry failed URLs
+			let retrySucceeded = 0;
+			let retryFailed: FailedUrl[] = [];
+
+			if (retries > 0 && failedUrls.length > 0) {
+				console.log(`\nRetrying ${failedUrls.length} failed URLs for ${retries} attempts...\n`);
+
+				for (let attempt = 0; attempt < retries; attempt++) {
+					// Delay before retry attempt (skip first attempt)
+					if (attempt > 0) {
+						await sleep(retryDelayMs);
+					}
+
+					for (const failedUrl of failedUrls) {
+						process.stderr.write(`${failedUrl.index} ${failedUrl.url} (retry ${attempt + 1}) ... `);
+
+						try {
+							const result = await parseUrl(failedUrl.url, options);
+							const textContent = result.content.replace(/<[^>]*>/g, '').trim();
+
+							if (!textContent) {
+								process.stderr.write(ansi.red('no content\n'));
+								retryFailed.push({ ...failedUrl, reason: `attempt_${attempt + 1}_no_content` });
+							} else {
+								const output = formatResult(result, { markdown: options.markdown, json: options.json });
+
+								// Generate unique filename with retry suffix
+								let baseName = slugFromUrl(failedUrl.url);
+								let fileName = `${baseName}-retry${attempt + 1}${ext}`;
+								let counter = 2;
+								while (usedNames.has(fileName)) {
+									fileName = `${baseName}-retry${attempt + 1}-${counter}${ext}`;
+									counter++;
+								}
+								usedNames.add(fileName);
+
+								const outputPath = join(outputDir, fileName);
+								await writeFile(outputPath, output, 'utf-8');
+								process.stderr.write(ansi.green(`${fileName} (${result.wordCount} words)\n`));
+								retrySucceeded++;
+							}
+						} catch (error) {
+							const msg = error instanceof Error ? error.message : 'Unknown error';
+							process.stderr.write(ansi.red(`error: ${msg}\n`));
+							retryFailed.push({ ...failedUrl, reason: `attempt_${attempt + 1}_error: ${msg}` });
+						}
+					}
+
+					// If all retries succeeded, break early
+					if (retryFailed.length === 0) {
+						break;
+					}
+
+					failedUrls = retryFailed as any;
+					retryFailed = [];
+				}
 			}
+
+			// Consolidate final failed URLs
+			const allFailedUrls: FailedUrl[] = [...failedUrls, ...retryFailed];
+
+			// Save failed URLs to file
+			if (saveFailures && allFailedUrls.length > 0) {
+				const logPath = join(outputDir, 'failures.log');
+				const logContent = allFailedUrls.map(({ url, reason }) => {
+					const timestamp = new Date().toISOString();
+					return `[${timestamp}] ${url} | Reason: ${reason}`;
+				}).join('\n');
+
+				await writeFile(logPath, logContent, 'utf-8');
+				console.log(ansi.green(`Failed URLs saved to ${logPath}`));
+			}
+
+			const totalFailed = allFailedUrls.length;
+			process.stderr.write(`\nDone: ${succeeded} succeeded, ${retrySucceeded} retries succeeded, ${totalFailed} failed\n`);
 		} catch (error) {
 			console.error(ansi.red('Error:'), error instanceof Error ? error.message : 'Unknown error occurred');
 			process.exit(1);

@@ -133,12 +133,24 @@ https://example.com/page2
 
 Output filenames are generated from the URL path (e.g. `page1.md`, `page2.md`). Duplicate names get a numeric suffix.
 
+Retrying failed URLs:
+
+```bash
+# Retry failed URLs 3 times with 5 second delay between attempts
+npx defuddle batch urls.txt --markdown --output-dir ./out --retries 3 --retry-delay 5
+```
+
+On retry, successful pages are saved with a `-retry1`, `-retry2` suffix (e.g. `page1-retry1.md`). Failed URLs are saved to `failures.log` for later reference.
+
 #### Batch options
 
 | Option | Alias | Description |
 |--------|-------|-------------|
 | `--output-dir <dir>` | `-o` | Output directory (default: current directory) |
 | `--delay <seconds>` | `-d` | Delay between requests in seconds (default: 1) |
+| `--retries <count>` | | Number of retry attempts for failed URLs (default: 0) |
+| `--retry-delay <seconds>` | | Delay between retry attempts in seconds (default: 1) |
+| `--save-failures` | | Save failed URLs to failures.log (default: true, use `--save-failures=false` to disable) |
 | `--markdown` | `-m` | Convert content to markdown format |
 | `--md` | | Alias for `--markdown` |
 | `--json` | `-j` | Output as JSON with metadata and content |

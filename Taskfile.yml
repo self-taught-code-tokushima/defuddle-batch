@@ -1,0 +1,11 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  GREETING: Hello, World!
+
+tasks:
+  default:
+    cmds:
+      - node ./dist/cli.js batch .\urls-hoge.txt --markdown --output-dir ./output-hoge --render --delay 3  --retries 3 --retry-delay 5
